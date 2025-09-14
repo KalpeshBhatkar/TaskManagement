@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
 using TaskManagement_API.Data;
 using TaskManagement_API.Models;
 using TaskManagement_API.Models.DTO;
@@ -13,38 +14,69 @@ namespace TaskManagement_API.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly IMapper _mapper;
+        protected APIResponse _response;
 
         public TeamController(ApplicationDbContext db, IMapper mapper)
         {
             _db = db;
             _mapper = mapper;
+            _response = new();
         }
 
 
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<TeamDTO>>> GetTeams()
+        public async Task<ActionResult<APIResponse>> GetTeams()
         {
-            IEnumerable<Team> TeamsList = await _db.Teams.Where(t => t.IsDeleted == false).ToListAsync();
-            return Ok(_mapper.Map<IEnumerable<TeamDTO>>(TeamsList));
+            try
+            {
+                IEnumerable<Team> TeamsList = await _db.Teams.Where(t => t.IsDeleted == false).ToListAsync();
+                _response.Result = _mapper.Map<IEnumerable<TeamDTO>>(TeamsList);
+                _response.StatusCode = HttpStatusCode.OK;
+                _response.IsSuccess = true;
+                return _response;
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+            }
+            return _response;
         }
 
         [HttpGet("{id:int}", Name = "GetTeamsById")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<TeamDTO>> GetTeamsById(int id)
+        public async Task<ActionResult<APIResponse>> GetTeamsById(int id)
         {
-            if (id == 0)
+            try
             {
-                return BadRequest();
+                if (id == 0)
+                {
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.IsSuccess = false;
+                    _response.ErrorMessages.Add("Id cannot be zero");
+                    return BadRequest(_response);
+                }
+                var team = await _db.Teams.Where(t => t.IsDeleted == false && t.TeamID == id).FirstOrDefaultAsync();
+                if (team == null)
+                {
+                    _response.StatusCode = HttpStatusCode.NotFound;
+                    _response.IsSuccess = false;
+                    _response.ErrorMessages.Add("Data Not Found");
+                    return NotFound(_response);
+                }
+                _response.Result = _mapper.Map<TeamDTO>(team);
+                _response.IsSuccess = true;
+                return Ok(_response);
             }
-            var team = await _db.Teams.Where(t => t.IsDeleted == false && t.TeamID == id).FirstOrDefaultAsync();
-            if (team == null)
+            catch (Exception ex)
             {
-                return NotFound();
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
             }
-            return Ok(team);
+            return _response;
         }
     }
 }
