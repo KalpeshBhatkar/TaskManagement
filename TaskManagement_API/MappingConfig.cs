@@ -9,6 +9,10 @@ namespace TaskManagement_API
         public MappingConfig()
         {
             CreateMap<Team, TeamDTO>().ReverseMap();
+
+            CreateMap<Team, TeamCreateDTO>().ReverseMap();
+
+            CreateMap<Team, TeamUpdateDTO>().ReverseMap();
         }
     }
 }
